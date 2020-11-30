@@ -1,4 +1,3 @@
-
 __version__ = "1.0"
 
 import logging
@@ -121,7 +120,8 @@ def save_state():
         for hwnd, state in states.items():
             if hwnd not in old_states:
                 new_windows[hwnd] = state
-        if len(new_windows) > 0:
+
+        if len(new_windows) == 1:
             move_windows(new_windows)
 
     old_states.update(states)
