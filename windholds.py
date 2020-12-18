@@ -12,6 +12,8 @@ import time
 
 kenny = logging.getLogger(__name__)
 
+kWindowClassIgnore = ["Shell_SecondaryTrayWnd", "Shell_TrayWnd"]
+
 _window_state = collections.defaultdict(dict)
 _handeling_display_change = False
 _diplay_change_delay = 100
@@ -118,11 +120,14 @@ def save_state():
     if _create_only_on_cursor and not _first_update and len(key) > 1:
         new_windows = {}
         for hwnd, state in states.items():
-            if hwnd not in old_states:
+            if hwnd not in old_states and win32gui.GetClassName(hwnd) not in kWindowClassIgnore:
                 new_windows[hwnd] = state
 
-        if len(new_windows) == 1:
+        new_window_count = len(new_windows)
+        if 0 < new_window_count <= 2:
             move_windows(new_windows)
+        elif new_window_count > 2:
+            kenny.info("More than 2 windows were created (%d).", new_window_count)
 
     old_states.update(states)
 
@@ -183,16 +188,21 @@ def move_windows(windows: dict):
             active_monitor = monitor
             break
 
-    moved = 0
+    moved = []
     for hwnd, state in windows.items():
         if not are_rect_intersecting(active_monitor["Monitor"], state[-1]):
-            move_window(hwnd, state, monitors, active_monitor)
-            moved += 1
+            class_name = win32gui.GetClassName(hwnd)
+            try:
+                move_window(hwnd, state, monitors, active_monitor)
+                moved.append(class_name)
+            except Exception as e:
+                kenny.warning('Unable to move window(s) ["%s"]', class_name)
+
         else:
             kenny.debug("Skipping, window already in active_monitor")
 
-    if moved > 0:
-        kenny.info("Moved %d windows to active_monitor", moved)
+    if len(moved) > 0:
+        kenny.info("Moved %s window(s) to active_monitor", moved)
 
 
 def restore_state():
